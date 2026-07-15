@@ -136,6 +136,88 @@ async def laporan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
 
+async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler untuk /edit [ID] [nominal/keterangan] [nilai_baru]"""
+    try:
+        user_id = update.effective_user.id
+
+        # Validasi jumlah argumen
+        if len(context.args) < 3:
+            await update.message.reply_text(
+                "❌ Format salah.\n"
+                "Gunakan: `/edit [ID] [nominal/keterangan] [nilai_baru]`\n\n"
+                "Contoh:\n"
+                "`/edit 12 nominal 25000`\n"
+                "`/edit 12 keterangan Makan siang di kantin`",
+                parse_mode="Markdown"
+            )
+            return
+
+        trx_id = context.args[0]
+        field = context.args[1].lower()
+        nilai_baru = " ".join(context.args[2:])  # gabung sisa argumen (untuk keterangan yang ada spasi)
+
+        # Validasi field yang boleh diedit
+        if field not in ("nominal", "keterangan"):
+            await update.message.reply_text(
+                "❌ Field tidak dikenali. Hanya boleh `nominal` atau `keterangan`.",
+                parse_mode="Markdown"
+            )
+            return
+
+        # Validasi ID harus angka
+        if not trx_id.isdigit():
+            await update.message.reply_text("❌ ID transaksi harus berupa angka.")
+            return
+
+        conn = sqlite3.connect("finance.db")
+        cursor = conn.cursor()
+
+        # Cek transaksi ada dan milik user ini
+        cursor.execute(
+            "SELECT id FROM transaksi WHERE id = ? AND user_id = ?",
+            (trx_id, user_id)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            await update.message.reply_text(
+                "❌ Transaksi dengan ID tersebut tidak ditemukan atau bukan milik Anda."
+            )
+            return
+
+        # Jika field nominal, validasi nilai harus angka
+        if field == "nominal":
+            try:
+                nilai_baru = float(nilai_baru.replace(",", "").replace(".", ""))
+            except ValueError:
+                conn.close()
+                await update.message.reply_text("❌ Nominal baru harus berupa angka.")
+                return
+
+            cursor.execute(
+                "UPDATE transaksi SET nominal = ? WHERE id = ? AND user_id = ?",
+                (nilai_baru, trx_id, user_id)
+            )
+        else:  # field == "keterangan"
+            cursor.execute(
+                "UPDATE transaksi SET keterangan = ? WHERE id = ? AND user_id = ?",
+                (nilai_baru, trx_id, user_id)
+            )
+
+        conn.commit()
+        conn.close()
+
+        await update.message.reply_text(
+            f"✅ Transaksi `ID {trx_id}` berhasil diperbarui.\n"
+            f"Field: *{field}* → `{nilai_baru}`",
+            parse_mode="Markdown"
+        )
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
 def main():
     """Main function"""
     # Inisialisasi database
@@ -149,7 +231,8 @@ def main():
     app.add_handler(CommandHandler("keluar", keluar))
     app.add_handler(CommandHandler("masuk", masuk))
     app.add_handler(CommandHandler("laporan", laporan))
-    
+    app.add_handler(CommandHandler("edit", edit))
+
     # Run
     print("✅ Bot berjalan...")
     app.run_polling()
