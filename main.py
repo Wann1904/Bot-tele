@@ -48,7 +48,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Perintah:\n"
         "/keluar [nominal] [keterangan] - Catat pengeluaran\n"
         "/masuk [nominal] [keterangan] - Catat pemasukan\n"
-        "/laporan - Lihat laporan keuangan"
+        "/laporan - Lihat laporan keuangan\n"
+        "/edit [ID] [nominal/keterangan] [nilai_baru] - Edit transaksi"
     )
 
 async def keluar(update: Update, context: ContextTypes.DEFAULT_TYPE):
